@@ -71,6 +71,11 @@ out/
 .DS_Store
 Thumbs.db
 
+
+# ---------- Local Tests (Not needed in repo) ----------
+tests/
+backend/tests/
+
 # ---------- Data & Large Files ----------
 # Don't commit large PDF files (they're already processed into Supabase)
 *.pdf
