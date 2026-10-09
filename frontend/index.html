@@ -54,7 +54,7 @@
         ::-webkit-scrollbar-track { background: #FFFFFF; border-left: 1px solid #000000; }
         ::-webkit-scrollbar-thumb { background: #000000; }
 
-        .chat-container { height: calc(100vh - 140px); overflow-y: auto; }
+        .chat-container { height: calc(100vh - 220px); overflow-y: auto; }
         
         /* Inverted Card (User Message) */
         .message-user { 
@@ -126,6 +126,14 @@
             <button id="logout-btn" class="bg-black text-white font-mono text-xs tracking-widest uppercase px-6 py-3 border-2 border-black hover:bg-white hover:text-black transition-colors duration-100">Logout</button>
         </div>
 
+        <!-- NEW: Agent Selector Tabs (Section 7.2 - Dedicated Bot Channels) -->
+        <div class="bg-white border-b-2 border-black flex overflow-x-auto">
+            <button data-agent="" class="agent-tab flex-1 py-4 px-6 font-mono text-xs tracking-widest uppercase border-r border-black border-b-4 border-black whitespace-nowrap">Squad</button>
+            <button data-agent="medical" class="agent-tab flex-1 py-4 px-6 font-mono text-xs tracking-widest uppercase border-r border-black border-b-4 border-transparent text-mutedFg hover:text-black whitespace-nowrap">Dr. Bot</button>
+            <button data-agent="legal" class="agent-tab flex-1 py-4 px-6 font-mono text-xs tracking-widest uppercase border-r border-black border-b-4 border-transparent text-mutedFg hover:text-black whitespace-nowrap">Legal Eagle</button>
+            <button data-agent="weather" class="agent-tab flex-1 py-4 px-6 font-mono text-xs tracking-widest uppercase border-b-4 border-transparent text-mutedFg hover:text-black whitespace-nowrap">Sky Cast</button>
+        </div>
+
         <!-- Messages Area -->
         <div id="messages" class="chat-container p-6 md:p-8 space-y-8 flex-1 bg-white">
             <!-- Welcome Message -->
@@ -168,10 +176,9 @@
 
         let currentUser = null;
         let threadId = null;
+        let targetAgent = "";  // "" = auto (Squad), otherwise: medical, legal, weather
 
-        // -------------------------------------------------------------------
-        // AUTHENTICATION LOGIC
-        // -------------------------------------------------------------------
+           // AUTHENTICATION LOGIC
         
         // Tab Switching
         document.getElementById('tab-login').addEventListener('click', () => {
@@ -257,10 +264,40 @@
             }
         });
 
-        // -------------------------------------------------------------------
-        // CHAT LOGIC
-        // -------------------------------------------------------------------
+        
+        // AGENT TAB SWITCHING (Section 7.2 - Dedicated Bot Channels)
+        
+        document.querySelectorAll('.agent-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Update active tab styling
+                document.querySelectorAll('.agent-tab').forEach(t => {
+                    t.classList.remove('border-black', 'text-black');
+                    t.classList.add('border-transparent', 'text-mutedFg');
+                });
+                tab.classList.remove('border-transparent', 'text-mutedFg');
+                tab.classList.add('border-black', 'text-black');
 
+                // Set target agent
+                targetAgent = tab.dataset.agent || "";
+
+                // Clear messages and show welcome message for the new agent
+                messagesContainer.innerHTML = '';
+                const agentNames = {
+                    "": "Supervisor",
+                    "medical": "Dr. Bot",
+                    "legal": "Legal Eagle",
+                    "weather": "Sky Cast"
+                };
+                const welcomeMsg = targetAgent
+                    ? `You are now chatting directly with ${agentNames[targetAgent]}. How can I help you?`
+                    : `Hello! I am the Supervisor AI. Ask me about Medical, Legal, or Weather topics.`;
+                
+                appendMessage('assistant', welcomeMsg, agentNames[targetAgent]);
+            });
+        });
+
+        // CHAT LOGIC
+        
         // Add a message to the UI (Updated for Monochrome Design)
         function appendMessage(role, text, agentName = null) {
             const messageWrapper = document.createElement('div');
@@ -296,8 +333,11 @@
             const loadingWrapper = document.createElement('div');
             loadingWrapper.id = loadingId;
             loadingWrapper.className = 'flex flex-col items-start';
-            loadingWrapper.innerHTML = `<span class="font-mono text-xs tracking-widest uppercase text-mutedFg mb-2 border-b border-black pb-1">Supervisor</span>
-                                        <div class="message-bot p-6 max-w-[85%] font-body text-lg italic text-mutedFg">Routing to agent...</div>`;
+            const loadingLabel = targetAgent ? 
+                { "medical": "Dr. Bot", "legal": "Legal Eagle", "weather": "Sky Cast" }[targetAgent] || "Supervisor" 
+                : "Supervisor";
+            loadingWrapper.innerHTML = `<span class="font-mono text-xs tracking-widest uppercase text-mutedFg mb-2 border-b border-black pb-1">${loadingLabel}</span>
+                                        <div class="message-bot p-6 max-w-[85%] font-body text-lg italic text-mutedFg">${targetAgent ? 'Thinking...' : 'Routing to agent...'}</div>`;
             messagesContainer.appendChild(loadingWrapper);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
@@ -305,7 +345,11 @@
                 const response = await fetch(BACKEND_API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ thread_id: threadId, message: message })
+                    body: JSON.stringify({ 
+                        thread_id: threadId, 
+                        message: message,
+                        target_agent: targetAgent || null
+                    })
                 });
 
                 const data = await response.json();
