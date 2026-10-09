@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Squad | Editorial Monochrome</title>
+    
+    <!-- Google Fonts: Playfair Display, Source Serif 4, JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bg: '#FFFFFF',
+                        fg: '#000000',
+                        muted: '#F5F5F5',
+                        mutedFg: '#525252',
+                        borderLight: '#E5E5E5',
+                    },
+                    fontFamily: {
+                        display: ['"Playfair Display"', 'serif'],
+                        body: ['"Source Serif 4"', 'serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    borderRadius: {
+                        'none': '0px',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        body { 
+            font-family: 'Source Serif 4', serif; 
+            background-color: #FFFFFF; 
+            color: #000000;
+            /* Subtle Noise Texture as per design system */
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            background-repeat: repeat;
+        }
+
+        /* Custom Scrollbar to match Editorial Style */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #FFFFFF; border-left: 1px solid #000000; }
+        ::-webkit-scrollbar-thumb { background: #000000; }
+
+        .chat-container { height: calc(100vh - 140px); overflow-y: auto; }
+        
+        /* Inverted Card (User Message) */
+        .message-user { 
+            background-color: #000000; 
+            color: #FFFFFF; 
+            border-radius: 0px;
+        }
+        
+        /* Standard Card (Bot Message) */
+        .message-bot { 
+            background-color: #FFFFFF; 
+            color: #000000; 
+            border: 1px solid #000000; 
+            border-radius: 0px;
+        }
+
+        /* Focus States per Design System */
+        input:focus, button:focus-visible {
+            outline: none;
+        }
+        input:focus {
+            border-bottom-width: 4px;
+        }
+        button:focus-visible {
+            outline: 3px solid #000000;
+            outline-offset: 3px;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4 md:p-8">
+
+    <!-- ================= AUTHENTICATION SCREEN ================= -->
+    <div id="auth-screen" class="w-full max-w-lg bg-white p-8 md:p-12 border-2 border-black">
+        <h1 class="text-6xl md:text-7xl font-display font-bold tracking-tighter uppercase mb-2 text-center">AI Squad</h1>
+        <p class="text-center font-mono text-xs tracking-widest uppercase mb-8 text-mutedFg">Multi-Agent System</p>
+        
+        <div class="flex mb-8 border-b-2 border-black">
+            <button id="tab-login" class="flex-1 py-4 font-mono text-xs tracking-widest uppercase font-semibold transition-none border-b-4 border-black">Login</button>
+            <button id="tab-signup" class="flex-1 py-4 font-mono text-xs tracking-widest uppercase font-semibold transition-none border-b-4 border-transparent text-mutedFg hover:text-black">Sign Up</button>
+        </div>
+
+        <!-- Login Form -->
+        <form id="login-form" class="space-y-6">
+            <input type="email" id="login-email" placeholder="Email address" required class="w-full p-4 bg-transparent border-b-2 border-black focus:border-b-4 focus:outline-none font-body text-lg placeholder-mutedFg placeholder-italic transition-all duration-100">
+            <input type="password" id="login-password" placeholder="Password" required class="w-full p-4 bg-transparent border-b-2 border-black focus:border-b-4 focus:outline-none font-body text-lg placeholder-mutedFg placeholder-italic transition-all duration-100">
+            <button type="submit" class="w-full bg-black text-white py-4 font-mono text-sm tracking-widest uppercase hover:bg-white hover:text-black border-2 border-black transition-colors duration-100">Login →</button>
+            <p id="login-error" class="text-black font-mono text-xs text-center hidden border border-black p-2 bg-muted"></p>
+        </form>
+
+        <!-- Signup Form -->
+        <form id="signup-form" class="space-y-6 hidden">
+            <input type="text" id="signup-name" placeholder="Full Name" required class="w-full p-4 bg-transparent border-b-2 border-black focus:border-b-4 focus:outline-none font-body text-lg placeholder-mutedFg placeholder-italic transition-all duration-100">
+            <input type="email" id="signup-email" placeholder="Email address" required class="w-full p-4 bg-transparent border-b-2 border-black focus:border-b-4 focus:outline-none font-body text-lg placeholder-mutedFg placeholder-italic transition-all duration-100">
+            <input type="password" id="signup-password" placeholder="Password" required class="w-full p-4 bg-transparent border-b-2 border-black focus:border-b-4 focus:outline-none font-body text-lg placeholder-mutedFg placeholder-italic transition-all duration-100">
+            <button type="submit" class="w-full bg-black text-white py-4 font-mono text-sm tracking-widest uppercase hover:bg-white hover:text-black border-2 border-black transition-colors duration-100">Sign Up →</button>
+            <p id="signup-error" class="text-black font-mono text-xs text-center hidden border border-black p-2 bg-muted"></p>
+        </form>
+    </div>
+
+    <!-- ================= CHAT SCREEN ================= -->
+    <div id="chat-screen" class="hidden w-full max-w-4xl bg-white border-2 border-black overflow-hidden flex flex-col h-[90vh]">
+        
+        <!-- Header -->
+        <div class="bg-white p-6 border-b-4 border-black flex justify-between items-center">
+            <div>
+                <h2 class="text-3xl md:text-4xl font-display font-bold tracking-tighter uppercase">AI Squad Chat</h2>
+                <p class="font-mono text-xs tracking-widest uppercase text-mutedFg mt-1" id="user-info">Logged in as: </p>
+            </div>
+            <button id="logout-btn" class="bg-black text-white font-mono text-xs tracking-widest uppercase px-6 py-3 border-2 border-black hover:bg-white hover:text-black transition-colors duration-100">Logout</button>
+        </div>
+
+        <!-- Messages Area -->
+        <div id="messages" class="chat-container p-6 md:p-8 space-y-8 flex-1 bg-white">
+            <!-- Welcome Message -->
+            <div class="flex flex-col items-start">
+                <span class="font-mono text-xs tracking-widest uppercase text-mutedFg mb-2 border-b border-black pb-1">Supervisor</span>
+                <div class="message-bot p-6 max-w-[85%] font-body text-lg leading-relaxed">
+                    Hello! I am the Supervisor AI. Ask me about Medical, Legal, or Weather topics.
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="bg-white p-4 border-t-4 border-black">
+            <form id="chat-form" class="flex gap-4">
+                <input type="text" id="chat-input" placeholder="Type your message..." required autocomplete="off" class="flex-1 p-4 bg-transparent border-2 border-black focus:border-b-4 focus:outline-none font-body text-lg placeholder-mutedFg placeholder-italic transition-all duration-100">
+                <button type="submit" class="bg-black text-white font-mono text-sm tracking-widest uppercase px-8 border-2 border-black hover:bg-white hover:text-black transition-colors duration-100">Send →</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT LOGIC ================= -->
+    <script>
+        // CONFIGURATION
+        const SUPABASE_URL = "https://uljuxttaermdfdimjpum.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsanV4dHRhZXJtZGZkaW1qcHVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0NDUwNTAsImV4cCI6MjEwNzAyMTA1MH0._39Zxu4QbC8yP22q2paQeoPQUj5Iz4qcoMJsx8JK2Y0";
+        const BACKEND_API_URL = "http://127.0.0.1:8000/api/v1/chat";
+
+        // Initialize Supabase Client
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // UI Elements
+        const authScreen = document.getElementById('auth-screen');
+        const chatScreen = document.getElementById('chat-screen');
+        const loginForm = document.getElementById('login-form');
+        const signupForm = document.getElementById('signup-form');
+        const messagesContainer = document.getElementById('messages');
+        const chatForm = document.getElementById('chat-form');
+        const chatInput = document.getElementById('chat-input');
+        const userInfo = document.getElementById('user-info');
+
+        let currentUser = null;
+        let threadId = null;
+
+        // -------------------------------------------------------------------
+        // AUTHENTICATION LOGIC
+        // -------------------------------------------------------------------
+        
+        // Tab Switching
+        document.getElementById('tab-login').addEventListener('click', () => {
+            loginForm.classList.remove('hidden');
+            signupForm.classList.add('hidden');
+            document.getElementById('tab-login').classList.add('border-black');
+            document.getElementById('tab-login').classList.remove('border-transparent', 'text-mutedFg');
+            document.getElementById('tab-signup').classList.remove('border-black');
+            document.getElementById('tab-signup').classList.add('border-transparent', 'text-mutedFg');
+        });
+
+        document.getElementById('tab-signup').addEventListener('click', () => {
+            signupForm.classList.remove('hidden');
+            loginForm.classList.add('hidden');
+            document.getElementById('tab-signup').classList.add('border-black');
+            document.getElementById('tab-signup').classList.remove('border-transparent', 'text-mutedFg');
+            document.getElementById('tab-login').classList.remove('border-black');
+            document.getElementById('tab-login').classList.add('border-transparent', 'text-mutedFg');
+        });
+
+        // Handle Login
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const errorEl = document.getElementById('login-error');
+            
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            
+            if (error) {
+                errorEl.textContent = error.message;
+                errorEl.classList.remove('hidden');
+            } else {
+                errorEl.classList.add('hidden');
+            }
+        });
+
+        // Handle Signup
+        signupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('signup-name').value;
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            const errorEl = document.getElementById('signup-error');
+            
+            const { data, error } = await supabaseClient.auth.signUp({
+                email,
+                password,
+                options: { data: { name: name } }
+            });
+            
+            if (error) {
+                errorEl.textContent = error.message;
+                errorEl.classList.remove('hidden');
+            } else {
+                errorEl.classList.add('hidden');
+                alert("Signup successful! You can now log in.");
+                document.getElementById('tab-login').click();
+            }
+        });
+
+        // Handle Logout
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            await supabaseClient.auth.signOut();
+        });
+
+        // Listen for Auth State Changes
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            if (session) {
+                currentUser = session.user;
+                threadId = currentUser.id; 
+                userInfo.textContent = `Logged in as: ${currentUser.email}`;
+                authScreen.classList.add('hidden');
+                chatScreen.classList.remove('hidden');
+                chatScreen.classList.add('flex');
+            } else {
+                currentUser = null;
+                threadId = null;
+                authScreen.classList.remove('hidden');
+                chatScreen.classList.add('hidden');
+                chatScreen.classList.remove('flex');
+                messagesContainer.innerHTML = ''; 
+            }
+        });
+
+        // -------------------------------------------------------------------
+        // CHAT LOGIC
+        // -------------------------------------------------------------------
+
+        // Add a message to the UI (Updated for Monochrome Design)
+        function appendMessage(role, text, agentName = null) {
+            const messageWrapper = document.createElement('div');
+            messageWrapper.className = `flex flex-col ${role === 'user' ? 'items-end' : 'items-start'}`;
+            
+            const label = document.createElement('span');
+            label.className = 'font-mono text-xs tracking-widest uppercase text-mutedFg mb-2 border-b border-black pb-1';
+            label.textContent = role === 'user' ? 'You' : (agentName || 'Supervisor');
+            
+            const bubble = document.createElement('div');
+            bubble.className = `${role === 'user' ? 'message-user' : 'message-bot'} p-6 max-w-[85%] font-body text-lg leading-relaxed whitespace-pre-wrap`;
+            bubble.textContent = text;
+
+            messageWrapper.appendChild(label);
+            messageWrapper.appendChild(bubble);
+            messagesContainer.appendChild(messageWrapper);
+            
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Handle Chat Submit
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = chatInput.value.trim();
+            if (!message || !threadId) return;
+
+            appendMessage('user', message);
+            chatInput.value = '';
+            chatInput.disabled = true;
+
+            // Loading indicator (Monochrome Style)
+            const loadingId = 'loading-' + Date.now();
+            const loadingWrapper = document.createElement('div');
+            loadingWrapper.id = loadingId;
+            loadingWrapper.className = 'flex flex-col items-start';
+            loadingWrapper.innerHTML = `<span class="font-mono text-xs tracking-widest uppercase text-mutedFg mb-2 border-b border-black pb-1">Supervisor</span>
+                                        <div class="message-bot p-6 max-w-[85%] font-body text-lg italic text-mutedFg">Routing to agent...</div>`;
+            messagesContainer.appendChild(loadingWrapper);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            try {
+                const response = await fetch(BACKEND_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ thread_id: threadId, message: message })
+                });
+
+                const data = await response.json();
+                document.getElementById(loadingId).remove();
+
+                if (response.ok) {
+                    appendMessage('assistant', data.reply, data.agent);
+                } else {
+                    appendMessage('assistant', 'Error: ' + (data.detail || 'Something went wrong.'), 'System');
+                }
+
+            } catch (error) {
+                document.getElementById(loadingId).remove();
+                appendMessage('assistant', 'Network error. Is the backend running?', 'System');
+            } finally {
+                chatInput.disabled = false;
+                chatInput.focus();
+            }
+        });
+
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                chatForm.dispatchEvent(new Event('submit'));
+            }
+        });
+    </script>
+</body>
+</html>

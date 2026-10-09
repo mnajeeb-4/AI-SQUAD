@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+langgraph
+langchain
+langchain-groq
+langchain-core
+supabase
+sentence-transformers
+pypdf
+httpx
+pydantic
+python-dotenv
+tiktoken
